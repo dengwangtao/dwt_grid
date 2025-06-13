@@ -14,10 +14,6 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(.)
 
-include_directories(google)
-
-link_directories(./lib/unix64)
-
 aux_source_directory(. SRCS)
 
 # 生成可执行文件
