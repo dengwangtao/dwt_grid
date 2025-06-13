@@ -2,6 +2,7 @@
 
 #include "comm_def.h"
 #include <unordered_map>
+#include <string>
 
 class GridKey
 {
