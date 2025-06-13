@@ -88,6 +88,7 @@ OS& operator<<(OS& os, const GridRect& rect)
 class PackageGrid
 {
 public:
+    // 这个地方可以改为ShmHashMap
     using GridType = std::unordered_map<GridKey, u64>;  // 哈希表
     // using GridType = std::map<GridKey, u64>;  // 红黑树
     using IteratorType = GridType::iterator;

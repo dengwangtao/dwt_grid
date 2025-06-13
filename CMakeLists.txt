@@ -11,12 +11,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
 set(CMAKE_BUILD_TYPE Debug)
 
+add_subdirectory(src)
 
-include_directories(.)
-
-aux_source_directory(. SRCS)
-
-# 生成可执行文件
-add_executable(main ${SRCS})
 
 # target_link_libraries(main protobuf)
