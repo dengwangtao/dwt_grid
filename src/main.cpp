@@ -1,7 +1,6 @@
 
 #include <iostream>
 
-#define DISABKLE_DLOG
 
 #include "comm_def.h"
 
@@ -18,6 +17,7 @@
 
 #endif
 
+#define TEST
 
 #ifdef TEST
 
