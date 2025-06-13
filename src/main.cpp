@@ -17,7 +17,7 @@
 
 #endif
 
-#define TEST
+// #define TEST
 
 #ifdef TEST
 
@@ -62,6 +62,7 @@ Color RandomColor() {
     return Color::RGB(dist(gen), dist(gen), dist(gen));
 }
 
+
 // 生成HSV颜色
 Color HSVColor(double h, double s, double v) {
     h = fmod(h, 360.0);
@@ -92,119 +93,135 @@ Color HSVColor(double h, double s, double v) {
     );
 }
 
-int main() {
-    int rows = 12;   // 网格行数
-    int cols = 16;   // 网格列数
-    int cell_size = 5; // 单元格大小（字符宽高）
-    
-    // 用于存储网格颜色
-    std::vector<std::vector<Color>> grid_colors(rows, std::vector<Color>(cols));
-    
-    // 生成网格颜色 (彩虹色分布)
+
+// 生成随机莫兰迪色
+Color RandomMutedColor() {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_real_distribution<float> distH(0, 360);   // 色相
+    static std::uniform_real_distribution<float> distS(0.2, 0.4); // 饱和度
+    static std::uniform_real_distribution<float> distV(0.7, 0.9); // 明度
+
+    float h = distH(gen);
+    float s = distS(gen);
+    float v = distV(gen);
+
+    return HSVColor(h, s, v);
+}
+
+void PrintGrid(const std::vector<std::vector<Color>>& grid_colors)
+{
+    s32 rows = static_cast<s32>(grid_colors.size());
+    s32 cols = static_cast<s32>(grid_colors[0].size());
+    s32 cell_size = 4;
+
+    // 创建网格布局
+    Elements row_elements;
     for (int r = 0; r < rows; r++) {
+        Elements col_elements;
         for (int c = 0; c < cols; c++) {
-            double hue = 360.0 * (c + r) / (cols + rows);
-            grid_colors[r][c] = HSVColor(hue, 0.8, 0.9);
+            // 创建单元格 - 使用空格字符构成等宽高的彩色格子
+            auto cell = text(" ") | 
+                        size(WIDTH, EQUAL, cell_size) | 
+                        size(HEIGHT, EQUAL, cell_size) | 
+                        bgcolor(grid_colors[r][c]);
+            
+            col_elements.push_back(cell);
+        }
+        row_elements.push_back(hbox(std::move(col_elements)));
+    }
+    
+    // 组合所有网格行
+    auto grid = vbox(std::move(row_elements));
+    
+    // 添加边框和背景以增强可视性
+    auto document = 
+        vbox({
+            text("彩色网格展示") | bold | hcenter | color(Color::Cyan),
+            separatorHeavy(),
+            grid | border | center,
+            filler(),
+            text("行数: " + std::to_string(rows) + 
+                 "  列数: " + std::to_string(cols)) | 
+                 color(Color::GrayLight) | hcenter
+        }) | border | bgcolor(Color::RGB(20, 20, 20));
+    
+    // 创建屏幕并渲染
+    auto screen = Screen::Create(
+        Dimension::Full(),       // 宽度
+        Dimension::Fit(document) // 高度自适应内容
+    );
+    
+    Render(screen, document);
+    screen.Print();
+}
+
+
+int main() {    
+    // 生成网格颜色 (彩虹色分布)
+    // for (int r = 0; r < rows; r++) {
+    //     for (int c = 0; c < cols; c++) {
+    //         double hue = 360.0 * (c + r) / (cols + rows);
+    //         grid_colors[r][c] = HSVColor(hue, 0.8, 0.9);
+    //     }
+    // }
+
+
+    PackageGrid grid;
+
+    // 根据当前时间初始化随机种子
+    srand(time(nullptr));
+
+    std::vector<std::tuple<s32, s32, s32>> rects;
+    std::unordered_map<s32, Color> color_map;
+    for (s32 i = 1; i <= 300; ++i)
+    {
+        int row = rand() % 5 + 1; // [1, 5]
+        // int col = rand() % 5 + 1; // [1, 5]
+        int col = row;
+        rects.emplace_back(row, col, i);
+        color_map[i] = RandomMutedColor();
+    }
+
+    GridRect global_rect(GridKey(0, 0), GridKey(300, 60));
+
+    auto snapshot = grid.MakeSnapshot(); // 创建一个快照
+
+    for (auto& rect : rects)
+    {
+        s32 height, width, value;
+        std::tie(height, width, value) = rect;
+
+        // 从快照中找到一个空闲区域
+        auto free_rect = snapshot.GetOneFreeRect(global_rect, height, width);
+        if (free_rect.IsValid())
+        {
+            snapshot.SetRect(free_rect, value);
+            // std::cout << "[INFO] " << height << " " << width << " put to " << free_rect << std::endl;
+        }
+        else
+        {
+            std::cout << "[ERROR] " << height << " " << width << " can't put " << global_rect << std::endl;
+        }
+    }
+
+    std::vector<std::vector<Color>> grid_colors(global_rect.Height(), std::vector<Color>(global_rect.Width()));
+    for (s32 r = 0; r < global_rect.Height(); r++)
+    {
+        for (s32 c = 0; c < global_rect.Width(); c++)
+        {
+            if (snapshot.Get({r, c}))
+            {
+                grid_colors[r][c] = color_map[snapshot.Get({r, c})];
+            }
+            else
+            {
+                grid_colors[r][c] = Color::Black;
+            }
         }
     }
     
-    // 创建网格布局
-    auto create_grid = [&] {
-        std::vector<Element> row_elements;
-        
-        for (int r = 0; r < rows; r++) {
-            std::vector<Element> col_elements;
-            
-            for (int c = 0; c < cols; c++) {
-                // 创建单元格 - 空字符组成固定尺寸的格子
-                auto cell = text(" ") | size(WIDTH, EQUAL, cell_size) | 
-                            size(HEIGHT, EQUAL, cell_size) | 
-                            bgcolor(grid_colors[r][c]);
-                
-                col_elements.push_back(cell);
-            }
-            
-            // 将一行单元格水平组合
-            row_elements.push_back(hbox(std::move(col_elements)));
-        }
-        
-        // 将所有行垂直组合
-        return vbox(std::move(row_elements)) | border | center | bgcolor(Color::RGB(40, 40, 40));
-    };
-    
-    // 创建交互组件
-    auto grid_component = Renderer([&] {
-        return create_grid();
-    });
-    
-    // 添加键盘交互
-    grid_component |= CatchEvent([&](Event event) {
-        if (event == Event::Character('r') || event == Event::Character('R')) {
-            // 重新生成随机颜色
-            for (auto& row : grid_colors) {
-                for (auto& color : row) {
-                    color = RandomColor();
-                }
-            }
-            return true;
-        }
-        if (event == Event::Character('g') || event == Event::Character('G')) {
-            // 重新生成渐变颜色
-            for (int r = 0; r < rows; r++) {
-                for (int c = 0; c < cols; c++) {
-                    double hue = 360.0 * (c + r) / (cols + rows);
-                    grid_colors[r][c] = HSVColor(hue, 0.8, 0.9);
-                }
-            }
-            return true;
-        }
-        if (event == Event::Character('+') && cell_size < 15) {
-            // 增大单元格
-            cell_size++;
-            return true;
-        }
-        if (event == Event::Character('-') && cell_size > 1) {
-            // 减小单元格
-            cell_size--;
-            return true;
-        }
-        if (event == Event::Escape) {
-            // 退出程序
-            return true;
-        }
-        return false;
-    });
-    
-    // 添加标题和说明
-    auto title = text("彩色网格可视化") | bold | hcenter | color(Color::Cyan);
-    auto instructions = vbox({
-        hbox(text("行: "), text(std::to_string(rows)) | bold | color(Color::Green)),
-        hbox(text("列: "), text(std::to_string(cols)) | bold | color(Color::Green)),
-        separator(),
-        text("控制指令:") | color(Color::Yellow),
-        hbox(text(" + / - "), text(" - 增加/减少单元格大小")),
-        hbox(text("   R   "), text(" - 随机颜色")),
-        hbox(text("   G   "), text(" - 渐变颜色")),
-        hbox(text(" ESC   "), text(" - 退出程序"))
-    }) | border | bgcolor(Color::RGB(60, 60, 60));
-    
-    // 完整布局
-    auto layout = Container::Vertical({grid_component});
-    auto renderer = Renderer(layout, [&] {
-        return vbox({
-            title,
-            separator(),
-            hbox({
-                grid_component->Render() | flex,
-                instructions | size(WIDTH, EQUAL, 30)
-            }),
-            filler()
-        }) | border | bgcolor(Color::GrayDark);
-    });
-    
-    // 运行
-    auto screen = ScreenInteractive::Fullscreen();
-    screen.Loop(renderer);
+    PrintGrid(grid_colors);
     
     return 0;
 }
