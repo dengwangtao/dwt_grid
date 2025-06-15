@@ -226,3 +226,107 @@ int main() {
     return 0;
 }
 #endif
+
+
+
+// #define TEST_MAKE_RECT
+
+#ifdef TEST_MAKE_RECT
+#include <algorithm>
+#include <climits>
+
+GridRect MakeRect(const std::vector<u32>& slots, u32 pkg_col)
+{
+
+    if (slots.empty())
+    {
+        return {};
+    }
+
+    if (pkg_col == 0)
+    {
+        return {};
+    }
+
+    std::vector<u32> sorted_slots(slots.begin(), slots.end());
+    std::sort(sorted_slots.begin(), sorted_slots.end());
+
+    GridKey top_left;
+    s32 rect_height = 0;
+    s32 rect_width = 0;
+
+    s32 min_col = INT_MAX;
+    s32 max_col = 0;
+    s32 min_row = INT_MAX;
+    s32 max_row = 0;
+
+    for (auto slot : slots)
+    {
+        s32 row = slot / pkg_col;
+        s32 col = slot % pkg_col;
+        min_row = std::min(min_row, row);
+        max_row = std::max(max_row, row);
+        min_col = std::min(min_col, col);
+        max_col = std::max(max_col, col);
+    }
+
+    top_left = GridKey{ min_row, min_col };
+    rect_height = max_row - min_row + 1;
+    rect_width = max_col - min_col + 1;
+
+    if (slots.size() % rect_width != 0)
+    {
+        return {};
+    }
+
+    if (slots.size() != rect_height * rect_width)
+    {
+        return {};
+    }
+
+    for (s32 i = 0; i < sorted_slots.size(); i += rect_width)
+    {
+        if (i > 0 && sorted_slots[i] != sorted_slots[i - rect_width] + pkg_col)
+        {
+            return {};
+        }
+        for (s32 j = i; j < i + rect_width; ++j)
+        {
+            if (j > i && sorted_slots[j] != sorted_slots[j - 1] + 1)
+            {
+                return {};
+            }
+        }
+    }
+
+    return GridRect{ top_left, rect_height, rect_width };
+}
+
+int main()
+{
+    {
+        u32 col1 = 7;
+        std::vector<u32> v_rect1 = {
+            14, 15,
+            21, 22
+        };
+
+        auto rect1 = MakeRect(v_rect1, col1);
+        std::cout << rect1 << std::endl;
+    }
+
+    {
+        u32 col1 = 3;
+        std::vector<u32> v_rect1 = {
+            3, 4, 5,
+            6, 7, 8
+        };
+
+        auto rect1 = MakeRect(v_rect1, col1);
+        std::cout << rect1 << std::endl;
+    }
+
+    return 0;
+}
+
+#endif
